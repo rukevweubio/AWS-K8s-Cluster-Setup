@@ -32,3 +32,8 @@ variable "my_ip_cidr" {
   description = "Your IP address with /32 CIDR for SSH access"
   default     = "0.0.0.0/0"
 }
+
+variable "aws_key_pair"{
+  description= "the diretory of teh key"
+  default= "id_rsa.pub.pem"
+}
