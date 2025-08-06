@@ -24,9 +24,12 @@ variable "ami_id" {
 
 }
 
-variable "instance_type" {
-  description = "EC2 instance type"
-  default     = "t2.micro"
+variable "master_instance_type" {
+  default = "t3.small"
+}
+
+variable "worker_instance_type" {
+  default = "t3.medium"
 }
 
 variable "my_ip_cidr" {

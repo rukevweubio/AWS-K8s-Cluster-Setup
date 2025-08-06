@@ -50,9 +50,50 @@ resource "aws_route_table_association" "main" {
   route_table_id = aws_route_table.main.id
 }
 
-resource "aws_security_group" "K8_CLUSTER" {
-  name        = "web-sg"
-  description = "Allow K8s and app traffic"
+
+
+
+
+
+
+resource "aws_security_group" "master_sg" {
+  name        = "k8s-master-sg"
+  description = "Security group for Kubernetes master node"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  
+
+  ingress {
+    description = "Kubernetes API server"
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  
+  }
+
+  # Add other master-specific ports here (etcd, kube-scheduler, etc.)
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "k8s-master-sg"
+  }
+}
+
+# Worker Security Group
+resource "aws_security_group" "worker_sg" {
+  name        = "k8s-worker-sg"
+  description = "Security group for Kubernetes worker node"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -63,84 +104,11 @@ resource "aws_security_group" "K8_CLUSTER" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Node.js"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Flask"
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Kubernetes ports
-  ingress {
-    description = "Kubernetes API server"
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "etcd server client API"
-    from_port   = 2379
-    to_port     = 2380
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+ 
   ingress {
     description = "Kubelet API"
     from_port   = 10250
     to_port     = 10250
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "kube-scheduler"
-    from_port   = 10251
-    to_port     = 10251
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "kube-controller-manager"
-    from_port   = 10252
-    to_port     = 10252
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Weave Net"
-    from_port   = 8472
-    to_port     = 8472
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # NodePort services (optional)
-  ingress {
-    description = "NodePort services"
-    from_port   = 30000
-    to_port     = 32767
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -153,30 +121,33 @@ resource "aws_security_group" "K8_CLUSTER" {
   }
 
   tags = {
-    Name = "K8_CLUSTER"
+    Name = "k8s-worker-sg"
   }
 }
 
-
+# Master Instance
 resource "aws_instance" "K8_master" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.main.id
-  vpc_security_group_ids = [aws_security_group.K8_CLUSTER.id]
+  ami                         = var.ami_id
+  instance_type               = var.master_instance_type
+  subnet_id                   = aws_subnet.main.id
+  vpc_security_group_ids      = [aws_security_group.master_sg.id]
   associate_public_ip_address = true
-  key_name    = aws_key_pair.deployer.key_name
+  key_name                   = aws_key_pair.deployer.key_name
+
   tags = {
     Name = "K8_master"
   }
 }
 
+# Worker Instance
 resource "aws_instance" "K8_worker" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.main.id
-  vpc_security_group_ids = [aws_security_group.K8_CLUSTER.id]
+  ami                         = var.ami_id
+  instance_type               = var.worker_instance_type
+  subnet_id                   = aws_subnet.main.id
+  vpc_security_group_ids      = [aws_security_group.worker_sg.id]
   associate_public_ip_address = true
-  key_name    = aws_key_pair.deployer.key_name
+  key_name                   = aws_key_pair.deployer.key_name
+
   tags = {
     Name = "K8_worker"
   }
